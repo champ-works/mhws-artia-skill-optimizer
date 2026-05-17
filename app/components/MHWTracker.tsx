@@ -356,6 +356,7 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
   return (
     <div className="space-y-3">
       <p className="text-xs text-gray-400">スクショをアップロードすると武器種・属性・スキルを自動読み取りします</p>
+      <p className="text-xs text-gray-300">※無料の読み取りエンジンを使用しているため精度が低い場合があります。うまく読み取れないときは手入力でご利用ください。</p>
       <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 space-y-0.5">
         <p className="text-xs text-amber-700 font-medium">📌 スクショの撮り方</p>
         <p className="text-xs text-amber-600">武器名〜グループスキルが映る範囲だけを切り取ってください。画面全体だと読み取り精度が大きく下がります。</p>
@@ -390,9 +391,16 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
 
       {/* n回目 + リセット */}
       <div className="flex items-center gap-2">
-        <div className="flex-1">
+        <div>
           <label className="text-xs text-gray-400 block mb-1">n回目</label>
-          <input type="number" value={nVal} onChange={e => setNVal(e.target.value)} className="w-full border border-gray-200 rounded-lg p-2 text-sm" />
+          <div className="flex items-center gap-1">
+            <button type="button" onClick={() => setNVal(v => String(Math.max(1, parseInt(v) - 1)))}
+              className="w-7 h-8 border border-gray-200 rounded-lg text-gray-500 text-sm cursor-pointer">−</button>
+            <input type="number" value={nVal} onChange={e => setNVal(e.target.value)}
+              className="w-14 border border-gray-200 rounded-lg p-2 text-sm text-center" />
+            <button type="button" onClick={() => setNVal(v => String(parseInt(v) + 1))}
+              className="w-7 h-8 border border-gray-200 rounded-lg text-gray-500 text-sm cursor-pointer">＋</button>
+          </div>
         </div>
         <button
           type="button"
@@ -443,12 +451,15 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
         </select>
       </div>
 
-      {editingId !== null && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 flex items-center justify-between">
-          <span className="text-xs text-blue-700">✏️ セルを編集中</span>
-          <button type="button" onClick={cancelEdit} className="text-xs text-blue-400 cursor-pointer">キャンセル</button>
-        </div>
-      )}
+      {editingId !== null && (() => {
+        const e = db.find(e => e.id === editingId);
+        return (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 flex items-center justify-between">
+            <span className="text-xs text-blue-700">✏️ {e ? `${e.weapon}（${e.element}）#${e.n} を編集中` : "セルを編集中"}</span>
+            <button type="button" onClick={cancelEdit} className="text-xs text-blue-400 cursor-pointer">キャンセル</button>
+          </div>
+        );
+      })()}
       {saveMsg && <p className="text-xs text-center text-green-600 font-medium">{saveMsg}</p>}
       <button type="button" onClick={handleSave} className="w-full bg-gray-900 text-white py-2.5 rounded-xl text-sm font-medium cursor-pointer">
         {editingId !== null ? "記録を更新して保存" : "記録を保存"}
@@ -522,25 +533,23 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
                             className={`border px-2 py-1 text-center ${entry ? `cursor-pointer ${SCORE_STYLES[getCellScore(entry.skill1, entry.skill2)]?.bg || "border-gray-200"}` : "border-gray-200"} ${isChecked ? "ring-2 ring-inset ring-blue-400" : ""}`}
                           >
                             {entry ? (
-                              <div className="relative flex flex-col items-center gap-0.5 px-3">
-                                <button
-                                  type="button"
-                                  onClick={e => { e.stopPropagation(); startEdit(entry); }}
-                                  className="absolute top-0 left-0 text-gray-300 leading-none text-xs cursor-pointer"
-                                  title="編集"
-                                >✏️</button>
-                                <button
-                                  type="button"
-                                  onClick={e => { e.stopPropagation(); delEntry(entry.id); }}
-                                  className="absolute top-0 right-0 text-gray-300 leading-none text-xs cursor-pointer"
-                                  title="削除"
-                                >🗑</button>
-                                {SCORE_STYLES[getCellScore(entry.skill1, entry.skill2)] && (
-                                  <span className="text-yellow-500 text-xs leading-none">{SCORE_STYLES[getCellScore(entry.skill1, entry.skill2)].stars}</span>
-                                )}
-                                <span className="text-xs text-gray-800">{entry.skill1 || "？"}</span>
-                                <span className="text-xs text-gray-400">×</span>
-                                <span className="text-xs text-gray-600">{entry.skill2 || "？"}</span>
+                              <div className="flex flex-col gap-0.5">
+                                {/* 上段：アイコン行 */}
+                                <div className="flex items-center justify-between">
+                                  <button type="button" onClick={e => { e.stopPropagation(); startEdit(entry); }}
+                                    className="text-gray-300 text-xs cursor-pointer leading-none" title="編集">✏️</button>
+                                  {SCORE_STYLES[getCellScore(entry.skill1, entry.skill2)]
+                                    ? <span className="text-yellow-500 text-xs leading-none">{SCORE_STYLES[getCellScore(entry.skill1, entry.skill2)].stars}</span>
+                                    : <span />}
+                                  <button type="button" onClick={e => { e.stopPropagation(); delEntry(entry.id); }}
+                                    className="text-gray-300 text-xs cursor-pointer leading-none" title="削除">🗑</button>
+                                </div>
+                                {/* 下段：スキル名 */}
+                                <div className="flex flex-col items-center gap-0.5">
+                                  <span className="text-xs text-gray-800">{entry.skill1 || "？"}</span>
+                                  <span className="text-xs text-gray-400">×</span>
+                                  <span className="text-xs text-gray-600">{entry.skill2 || "？"}</span>
+                                </div>
                               </div>
                             ) : <span className="text-gray-100">—</span>}
                           </td>
