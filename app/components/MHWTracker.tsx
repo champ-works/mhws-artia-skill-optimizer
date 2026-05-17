@@ -522,27 +522,25 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
                             className={`border px-2 py-1 text-center ${entry ? `cursor-pointer ${SCORE_STYLES[getCellScore(entry.skill1, entry.skill2)]?.bg || "border-gray-200"}` : "border-gray-200"} ${isChecked ? "ring-2 ring-inset ring-blue-400" : ""}`}
                           >
                             {entry ? (
-                              <div className="relative flex flex-col items-center gap-0.5 pr-3">
+                              <div className="relative flex flex-col items-center gap-0.5 px-3">
+                                <button
+                                  type="button"
+                                  onClick={e => { e.stopPropagation(); startEdit(entry); }}
+                                  className="absolute top-0 left-0 text-gray-300 leading-none text-xs cursor-pointer"
+                                  title="編集"
+                                >✏️</button>
+                                <button
+                                  type="button"
+                                  onClick={e => { e.stopPropagation(); delEntry(entry.id); }}
+                                  className="absolute top-0 right-0 text-gray-300 leading-none text-xs cursor-pointer"
+                                  title="削除"
+                                >🗑</button>
                                 {SCORE_STYLES[getCellScore(entry.skill1, entry.skill2)] && (
                                   <span className="text-yellow-500 text-xs leading-none">{SCORE_STYLES[getCellScore(entry.skill1, entry.skill2)].stars}</span>
                                 )}
                                 <span className="text-xs text-gray-800">{entry.skill1 || "？"}</span>
                                 <span className="text-xs text-gray-400">×</span>
                                 <span className="text-xs text-gray-600">{entry.skill2 || "？"}</span>
-                                <div className="absolute top-0 right-0 flex flex-col gap-0.5">
-                                  <button
-                                    type="button"
-                                    onClick={e => { e.stopPropagation(); startEdit(entry); }}
-                                    className="text-gray-300 leading-none text-xs cursor-pointer"
-                                    title="編集"
-                                  >✏️</button>
-                                  <button
-                                    type="button"
-                                    onClick={e => { e.stopPropagation(); delEntry(entry.id); }}
-                                    className="text-gray-300 leading-none text-xs cursor-pointer"
-                                    title="削除"
-                                  >🗑</button>
-                                </div>
                               </div>
                             ) : <span className="text-gray-100">—</span>}
                           </td>
