@@ -198,16 +198,16 @@ async function analyzeScreenshot(
       if (skills.length >= 2) break;
     }
 
-    console.log("OCR全テキスト:\n", text);
-    console.log("スペース除去後:", linesNoSpace);
-    console.log("検出→ 武器名:", weaponName, "属性:", element, "スキル:", skills);
+    // シリーズスキル(skill1)とグループスキル(skill2)に分類
+    const seriesFound = skills.filter(s => SERIES_SKILLS.includes(s));
+    const groupFound  = skills.filter(s => GROUP_SKILLS.includes(s));
 
     return {
       weaponName,
       weapon: ARTIA_WEAPON_MAP[weaponName] || "",
       element,
-      skill1: skills[0] || "",
-      skill2: skills[1] || "",
+      skill1: seriesFound[0] || "",
+      skill2: groupFound[0]  || "",
       _rawText: text,
     };
   } finally {
@@ -234,6 +234,7 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
   const [log, setLog] = useState<string | null>(null);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const [editingId, setEditingId] = useState<number | null>(null);
   const dbRef = useRef(db);
   const nValRef = useRef(nVal);
 
@@ -311,21 +312,44 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
     reader.readAsDataURL(file);
   };
 
+  const startEdit = (entry: Entry) => {
+    setEditingId(entry.id);
+    setWeapon(entry.weapon);
+    setElement(entry.element);
+    setSkill1(entry.skill1);
+    setSkill2(entry.skill2);
+    setImgSrc(null); setLog(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setSkill1(""); setSkill2("");
+  };
+
   const handleSave = () => {
     if (!weapon || !element) { setSaveMsg("武器種と属性は必須です"); return; }
-    const entry: Entry = {
-      id: Date.now(),
-      n: parseInt(nVal) || db.length + 1,
-      weapon, element, name: "", skill1, skill2,
-      ts: new Date().toLocaleDateString("ja-JP"),
-    };
-    const next = [...db, entry];
-    setDb(next);
-    saveDB(next);
-    setNVal(v => String(parseInt(v) + 1));
-    setWeapon(""); setElement(""); setSkill1(""); setSkill2("");
-    setImgSrc(null); setLog(null);
-    setSaveMsg(`✓ 保存しました（保存済み${next.length}件）`);
+    if (editingId !== null) {
+      const next = db.map(e => e.id === editingId ? { ...e, weapon, element, skill1, skill2 } : e);
+      setDb(next); saveDB(next);
+      setEditingId(null);
+      setSkill1(""); setSkill2("");
+      setImgSrc(null); setLog(null);
+      setSaveMsg("✓ 更新しました");
+    } else {
+      const entry: Entry = {
+        id: Date.now(),
+        n: parseInt(nVal) || db.length + 1,
+        weapon, element, name: "", skill1, skill2,
+        ts: new Date().toLocaleDateString("ja-JP"),
+      };
+      const next = [...db, entry];
+      setDb(next); saveDB(next);
+      setNVal(v => String(parseInt(v) + 1));
+      setSkill1(""); setSkill2("");
+      setImgSrc(null); setLog(null);
+      setSaveMsg(`✓ 保存しました（保存済み${next.length}件）`);
+    }
     setTimeout(() => setSaveMsg(null), 3000);
   };
 
@@ -419,9 +443,15 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
         </select>
       </div>
 
+      {editingId !== null && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 flex items-center justify-between">
+          <span className="text-xs text-blue-700">✏️ セルを編集中</span>
+          <button type="button" onClick={cancelEdit} className="text-xs text-blue-400 cursor-pointer">キャンセル</button>
+        </div>
+      )}
       {saveMsg && <p className="text-xs text-center text-green-600 font-medium">{saveMsg}</p>}
       <button type="button" onClick={handleSave} className="w-full bg-gray-900 text-white py-2.5 rounded-xl text-sm font-medium cursor-pointer">
-        記録を保存
+        {editingId !== null ? "記録を更新して保存" : "記録を保存"}
       </button>
 
       {/* ── テーブル ── */}
@@ -456,7 +486,7 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
         return (
           <div className="mt-4 space-y-2">
             <div className="flex items-center justify-between">
-              <p className="text-xs text-gray-400">行=N回目 / 列=武器種+属性<br />セルをタップで回収したいスキルをマーク（1行1つ）</p>
+              <p className="text-xs text-gray-400">行=n回目 / 列=武器種+属性<br />セルをタップで回収したいスキルをマーク（1行1つ）</p>
               <button type="button" onClick={clearAll} className="text-xs text-red-300 border border-red-200 rounded px-2 py-0.5 cursor-pointer">全クリア</button>
             </div>
             <div className="overflow-x-auto">
@@ -499,12 +529,20 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
                                 <span className="text-xs text-gray-800">{entry.skill1 || "？"}</span>
                                 <span className="text-xs text-gray-400">×</span>
                                 <span className="text-xs text-gray-600">{entry.skill2 || "？"}</span>
-                                <button
-                                  type="button"
-                                  onClick={e => { e.stopPropagation(); delEntry(entry.id); }}
-                                  className="absolute top-0 right-0 text-gray-300 leading-none text-xs cursor-pointer"
-                                  title="削除"
-                                >🗑</button>
+                                <div className="absolute top-0 right-0 flex flex-col gap-0.5">
+                                  <button
+                                    type="button"
+                                    onClick={e => { e.stopPropagation(); startEdit(entry); }}
+                                    className="text-gray-300 leading-none text-xs cursor-pointer"
+                                    title="編集"
+                                  >✏️</button>
+                                  <button
+                                    type="button"
+                                    onClick={e => { e.stopPropagation(); delEntry(entry.id); }}
+                                    className="text-gray-300 leading-none text-xs cursor-pointer"
+                                    title="削除"
+                                  >🗑</button>
+                                </div>
                               </div>
                             ) : <span className="text-gray-100">—</span>}
                           </td>
