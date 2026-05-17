@@ -685,6 +685,16 @@ export default function MHWTracker() {
       <div style={{ display: tab === "capture" ? "block" : "none" }}><CaptureTab db={db} setDb={setDb} /></div>
       <div style={{ display: tab === "search"  ? "block" : "none" }}><SearchTab  db={db} /></div>
       <div style={{ display: tab === "stats"   ? "block" : "none" }}><StatsTab   db={db} /></div>
+      <div className="mt-8 pt-4 border-t border-gray-100 text-center">
+        <a
+          href="https://buymeacoffee.com/champ.work"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-block text-xs text-gray-400 hover:text-yellow-500 transition-colors"
+        >
+          ☕ このツールが役に立ったら
+        </a>
+      </div>
     </div>
   );
 }
