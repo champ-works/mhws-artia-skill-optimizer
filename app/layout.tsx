@@ -13,8 +13,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "アーティア武器スキル厳選ツール | MHWs",
-  description: "モンスターハンターワイルズのアーティア武器スキル厳選補助ツール",
+  title: "巨戟アーティアスキル厳選補助ツール | MHWs",
+  description: "モンスターハンターワイルズ（MHWs）の巨戟アーティア武器スキル厳選をサポート。スクショOCRで自動記録、スキル検索、統計表示に対応。スマホ・PC両対応。",
+  keywords: ["モンスターハンターワイルズ", "MHWs", "アーティア", "スキル厳選", "巨戟", "武器", "ツール"],
+  openGraph: {
+    title: "巨戟アーティアスキル厳選補助ツール | MHWs",
+    description: "MHWsのアーティア武器スキル厳選をサポート。スクショ自動読み取り・スキル検索対応。",
+    type: "website",
+  },
 };
 
 export const viewport = {
