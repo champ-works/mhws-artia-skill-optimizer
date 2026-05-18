@@ -386,16 +386,14 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
       <p className="text-xs text-gray-300">※無料の読み取りエンジンを使用しているため精度が低い場合があります。うまく読み取れないときは手入力でご利用ください。</p>
       <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 space-y-1">
         <p className="text-xs text-amber-700 font-medium">📌 精度を上げるスクショの撮り方</p>
-        <p className="text-xs text-amber-600">切り取り範囲の目安：</p>
-        <div className="text-xs text-amber-700 font-mono bg-amber-100 rounded px-2 py-1 space-y-0.5">
-          <p>┌───────────────────────┐</p>
-          <p>│ 武器名（例：永訣の〜）│ ← ここから</p>
-          <p>│ 火属性タイプ　　　　　│</p>
-          <p>│ 発動スキル　　　　　　│</p>
-          <p>│ 巨戟龍の黙示録　　　　│</p>
-          <p>│ ヌシの魂　　　　　　　│ ← ここまで</p>
-          <p>└───────────────────────┘</p>
-        </div>
+        <p className="text-xs text-amber-600">切り取り範囲の目安（武器名〜スキル一覧）：</p>
+        <ul className="text-xs text-amber-700 bg-amber-100 rounded px-3 py-1.5 space-y-0.5 list-none">
+          <li>▶ 武器名（例：永訣の〜）　← ここから</li>
+          <li>　 火属性タイプ</li>
+          <li>　 発動スキル</li>
+          <li>　 巨戟龍の黙示録</li>
+          <li>　 ヌシの魂　　　　← ここまで</li>
+        </ul>
         <p className="text-xs text-amber-600">画面全体・ゲームUI全域は精度が大きく下がります。読み取れない項目は手入力してください。</p>
       </div>
       <div
