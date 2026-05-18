@@ -263,6 +263,7 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [editingId, setEditingId] = useState<number | null>(null);
   const [guideOpen, setGuideOpen] = useState(true);
+  const [lastSavedId, setLastSavedId] = useState<number | null>(null);
   const dbRef = useRef(db);
   const nValRef = useRef(nVal);
 
@@ -300,6 +301,8 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
         saveDB(next);
         setNVal(v => String(parseInt(v) + 1));
         setGuideOpen(false);
+        setLastSavedId(entry.id);
+        setTimeout(() => setLastSavedId(null), 3000);
         setLog(`✓ 自動保存: ${entry.n}回目 ${entry.weapon}(${entry.element})\nスキル: ${entry.skill1 || "シリーズスキル読取不可"} / ${entry.skill2 || "グループスキル読取不可"}`);
         setImgSrc(null);
       } else {
@@ -378,6 +381,8 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
       setSkill1(""); setSkill2("");
       setImgSrc(null); setLog(null);
       setGuideOpen(false);
+      setLastSavedId(entry.id);
+      setTimeout(() => setLastSavedId(null), 3000);
       setSaveMsg(`✓ 保存しました（保存済み${next.length}件）`);
     }
     setTimeout(() => setSaveMsg(null), 3000);
@@ -398,11 +403,12 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
         {guideOpen && (
           <div className="px-3 py-2 space-y-2">
             <ul className="text-xs text-gray-500 space-y-1.5 list-none">
-              <li>📷 スクショをアップロードすると武器種・属性・スキルを自動読み取りして保存します</li>
+              <li>📷 スクショをアップロードすると武器種・属性・スキルを自動読み取りして保存します（静止画のみ対応）</li>
               <li>✏️ 読み取れない場合は武器種・属性を手動で選択して「記録を保存」を押してください</li>
-              <li>🔢 n回目はリロール回数です。アップロードごとに自動カウントアップします</li>
+              <li>🔢 n回目はリロール回数です。保存するたびに自動カウントアップ。タイトルに戻るときはリセットボタンで1回目に戻してください</li>
               <li>☑️ テーブルのセルをタップすると青枠でマーク（回収候補スキルの目印に）</li>
               <li>🔍 スキル検索タブで特定スキルが何回目にあるか検索できます</li>
+              <li className="text-gray-400">※無料の読み取りエンジンを使用しているため精度が低い場合があります。うまく読み取れないときは手入力でご利用ください。</li>
             </ul>
             <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 space-y-1">
               <p className="text-xs text-amber-700 font-medium">📌 OCR精度を上げるスクショの撮り方</p>
@@ -587,7 +593,7 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
                           <td
                             key={col}
                             onClick={() => entry && handleCheck(ck, n)}
-                            className={`border px-2 py-1 text-center ${entry ? `cursor-pointer ${SCORE_STYLES[getCellScore(entry.skill1, entry.skill2)]?.bg || "border-gray-200"}` : "border-gray-200"} ${isChecked ? "ring-2 ring-inset ring-blue-400" : ""}`}
+                            className={`border px-2 py-1 text-center ${entry ? `cursor-pointer ${SCORE_STYLES[getCellScore(entry.skill1, entry.skill2)]?.bg || "border-gray-200"}` : "border-gray-200"} ${entry && entry.id === lastSavedId ? "ring-2 ring-inset ring-green-400" : isChecked ? "ring-2 ring-inset ring-blue-400" : ""}`}
                           >
                             {entry ? (
                               <div className="flex flex-col gap-0.5">
@@ -637,7 +643,7 @@ function getCellScore(skill1: string, skill2: string): number {
 
 const SCORE_STYLES: Record<number, { bg: string; stars: string; starColor: string }> = {
   2: { bg: "bg-yellow-50 border-yellow-400", stars: "★★", starColor: "text-yellow-500" },
-  1: { bg: "bg-gray-100 border-gray-300",    stars: "★",  starColor: "text-gray-400"   },
+  1: { bg: "bg-amber-50 border-amber-300",   stars: "★",  starColor: "text-amber-600"  },
 };
 
 // ── スキル検索タブ ──────────────────────────────────────────────
