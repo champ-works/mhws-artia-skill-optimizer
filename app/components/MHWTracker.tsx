@@ -388,13 +388,13 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
         <p className="text-xs text-amber-700 font-medium">📌 精度を上げるスクショの撮り方</p>
         <p className="text-xs text-amber-600">切り取り範囲の目安：</p>
         <div className="text-xs text-amber-700 font-mono bg-amber-100 rounded px-2 py-1 space-y-0.5">
-          <p>┌─────────────────┐</p>
+          <p>┌───────────────────────┐</p>
           <p>│ 武器名（例：永訣の〜）│ ← ここから</p>
-          <p>│ 火属性タイプ　　　　│</p>
-          <p>│ 発動スキル　　　　　│</p>
-          <p>│ ◯◯龍の黙示録　　│</p>
-          <p>│ ヌシの魂　　　　　　│ ← ここまで</p>
-          <p>└─────────────────┘</p>
+          <p>│ 火属性タイプ　　　　　│</p>
+          <p>│ 発動スキル　　　　　　│</p>
+          <p>│ 巨戟龍の黙示録　　　　│</p>
+          <p>│ ヌシの魂　　　　　　　│ ← ここまで</p>
+          <p>└───────────────────────┘</p>
         </div>
         <p className="text-xs text-amber-600">画面全体・ゲームUI全域は精度が大きく下がります。読み取れない項目は手入力してください。</p>
       </div>
