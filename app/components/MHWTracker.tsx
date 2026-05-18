@@ -262,6 +262,7 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [guideOpen, setGuideOpen] = useState(true);
   const dbRef = useRef(db);
   const nValRef = useRef(nVal);
 
@@ -298,7 +299,8 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
         setDb(next);
         saveDB(next);
         setNVal(v => String(parseInt(v) + 1));
-        setLog(`✓ 自動保存: ${entry.weapon}(${entry.element}) #${entry.n}\nスキル: ${entry.skill1} / ${entry.skill2}\n[OCR]: ${result._rawText?.slice(0, 200) || "(空)"}`);
+        setGuideOpen(false);
+        setLog(`✓ 自動保存: ${entry.n}回目 ${entry.weapon}(${entry.element})\nスキル: ${entry.skill1 || "シリーズスキル読取不可"} / ${entry.skill2 || "グループスキル読取不可"}`);
         setImgSrc(null);
       } else {
         // 取れた情報をフォームにセットして手動保存を促す
@@ -375,6 +377,7 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
       setNVal(v => String(parseInt(v) + 1));
       setSkill1(""); setSkill2("");
       setImgSrc(null); setLog(null);
+      setGuideOpen(false);
       setSaveMsg(`✓ 保存しました（保存済み${next.length}件）`);
     }
     setTimeout(() => setSaveMsg(null), 3000);
@@ -382,19 +385,39 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-gray-400">スクショをアップロードすると武器種・属性・スキルを自動読み取りします</p>
-      <p className="text-xs text-gray-300">※無料の読み取りエンジンを使用しているため精度が低い場合があります。うまく読み取れないときは手入力でご利用ください。</p>
-      <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 space-y-1">
-        <p className="text-xs text-amber-700 font-medium">📌 精度を上げるスクショの撮り方</p>
-        <p className="text-xs text-amber-600">切り取り範囲の目安（武器名〜スキル一覧）：</p>
-        <ul className="text-xs text-amber-700 bg-amber-100 rounded px-3 py-1.5 space-y-0.5 list-none">
-          <li>▶ 武器名（例：永訣の〜）　← ここから</li>
-          <li>　 火属性タイプ</li>
-          <li>　 発動スキル</li>
-          <li>　 巨戟龍の黙示録</li>
-          <li>　 ヌシの魂　　　　← ここまで</li>
-        </ul>
-        <p className="text-xs text-amber-600">画面全体・ゲームUI全域は精度が大きく下がります。読み取れない項目は手入力してください。</p>
+      {/* 使い方ガイド */}
+      <div className="border border-gray-200 rounded-xl overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setGuideOpen(v => !v)}
+          className="w-full flex items-center justify-between px-3 py-2 bg-gray-50 text-xs text-gray-600 font-medium cursor-pointer"
+        >
+          <span>📖 使い方ガイド</span>
+          <span className="text-gray-400">{guideOpen ? "▲ 閉じる" : "▼ 開く"}</span>
+        </button>
+        {guideOpen && (
+          <div className="px-3 py-2 space-y-2">
+            <ul className="text-xs text-gray-500 space-y-1.5 list-none">
+              <li>📷 スクショをアップロードすると武器種・属性・スキルを自動読み取りして保存します</li>
+              <li>✏️ 読み取れない場合は武器種・属性を手動で選択して「記録を保存」を押してください</li>
+              <li>🔢 n回目はリロール回数です。アップロードごとに自動カウントアップします</li>
+              <li>☑️ テーブルのセルをタップすると青枠でマーク（回収候補スキルの目印に）</li>
+              <li>🔍 スキル検索タブで特定スキルが何回目にあるか検索できます</li>
+            </ul>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 space-y-1">
+              <p className="text-xs text-amber-700 font-medium">📌 OCR精度を上げるスクショの撮り方</p>
+              <p className="text-xs text-amber-600">切り取り範囲の目安（武器名〜スキル一覧）：</p>
+              <ul className="text-xs text-amber-700 bg-amber-100 rounded px-3 py-1.5 space-y-0.5 list-none">
+                <li>▶ 武器名（例：永訣の〜）　← ここから</li>
+                <li>　 火属性タイプ</li>
+                <li>　 発動スキル</li>
+                <li>　 巨戟龍の黙示録</li>
+                <li>　 ヌシの魂　　　　← ここまで</li>
+              </ul>
+              <p className="text-xs text-amber-600">画面全体・ゲームUI全域は精度が大きく下がります。読み取れない項目は手入力してください。</p>
+            </div>
+          </div>
+        )}
       </div>
       <div
         onPaste={handlePaste}
@@ -489,7 +512,7 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
         const e = db.find(e => e.id === editingId);
         return (
           <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 flex items-center justify-between">
-            <span className="text-xs text-blue-700">✏️ {e ? `${e.weapon}（${e.element}）#${e.n} を編集中` : "セルを編集中"}</span>
+            <span className="text-xs text-blue-700">✏️ {e ? `${e.n}回目 ${e.weapon}（${e.element}）を編集中` : "セルを編集中"}</span>
             <button type="button" onClick={cancelEdit} className="text-xs text-blue-400 cursor-pointer">キャンセル</button>
           </div>
         );
@@ -572,9 +595,7 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
                                 <div className="flex items-center justify-between">
                                   <button type="button" onClick={e => { e.stopPropagation(); startEdit(entry); }}
                                     className="text-gray-300 text-xs cursor-pointer leading-none" title="編集">✏️</button>
-                                  {SCORE_STYLES[getCellScore(entry.skill1, entry.skill2)]
-                                    ? <span className="text-yellow-500 text-xs leading-none">{SCORE_STYLES[getCellScore(entry.skill1, entry.skill2)].stars}</span>
-                                    : <span />}
+                                  {(() => { const s = SCORE_STYLES[getCellScore(entry.skill1, entry.skill2)]; return s ? <span className={`${s.starColor} text-xs leading-none`}>{s.stars}</span> : <span />; })()}
                                   <button type="button" onClick={e => { e.stopPropagation(); delEntry(entry.id); }}
                                     className="text-gray-300 text-xs cursor-pointer leading-none" title="削除">🗑</button>
                                 </div>
@@ -594,13 +615,9 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
                 </tbody>
               </table>
             </div>
-            <div className="flex flex-wrap items-center gap-1 pt-1">
-              <span className="text-xs text-gray-400">オススメ度：</span>
-              {Object.entries(SCORE_STYLES).sort((a,b) => Number(b[0])-Number(a[0])).map(([score, s]) => (
-                <span key={score} className={`text-xs px-2 py-0.5 rounded border ${s.bg}`}>
-                  <span className="text-yellow-500">{s.stars}</span>
-                </span>
-              ))}
+            <div className="pt-1 space-y-0.5">
+              <p className="text-xs text-gray-400"><span className="text-yellow-500">★</span>人気シリーズスキル：巨戟龍の黙示録 / 黒蝕竜の力 / 兇爪竜の力 / 白熾龍の脈動 / 雷顎竜の闘志 / 海竜の渦雷</p>
+              <p className="text-xs text-gray-400"><span className="text-yellow-500">★</span>人気グループスキル：ヌシの魂</p>
             </div>
           </div>
         );
@@ -609,24 +626,18 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
   );
 }
 
-const SKILL_POPULARITY: Record<string, number> = {
-  "巨戟龍の黙示録": 3, "黒蝕竜の力": 3,
-  "兇爪竜の力": 2, "白熾龍の脈動": 2,
-  "泡狐竜の力": 1, "雷顎竜の闘志": 1,
-  "ヌシの魂": 3,
-};
+const POPULAR_SERIES_SKILLS = new Set(["巨戟龍の黙示録","黒蝕竜の力","兇爪竜の力","白熾龍の脈動","雷顎竜の闘志","海竜の渦雷"]);
+const POPULAR_GROUP_SKILLS  = new Set(["ヌシの魂"]);
 
 function getCellScore(skill1: string, skill2: string): number {
-  return (SKILL_POPULARITY[skill1] || 0) + (SKILL_POPULARITY[skill2] || 0);
+  const s = (POPULAR_SERIES_SKILLS.has(skill1) || POPULAR_SERIES_SKILLS.has(skill2)) ? 1 : 0;
+  const g = (POPULAR_GROUP_SKILLS.has(skill1)  || POPULAR_GROUP_SKILLS.has(skill2))  ? 1 : 0;
+  return s + g;
 }
 
-const SCORE_STYLES: Record<number, { bg: string; stars: string }> = {
-  6: { bg: "bg-yellow-50 border-yellow-400",  stars: "★★★★★★" },
-  5: { bg: "bg-yellow-50 border-yellow-300",  stars: "★★★★★" },
-  4: { bg: "bg-amber-50 border-amber-300",    stars: "★★★★" },
-  3: { bg: "bg-green-50 border-green-300",    stars: "★★★" },
-  2: { bg: "bg-blue-50 border-blue-300",      stars: "★★" },
-  1: { bg: "bg-gray-50 border-gray-300",      stars: "★" },
+const SCORE_STYLES: Record<number, { bg: string; stars: string; starColor: string }> = {
+  2: { bg: "bg-yellow-50 border-yellow-400", stars: "★★", starColor: "text-yellow-500" },
+  1: { bg: "bg-gray-100 border-gray-300",    stars: "★",  starColor: "text-gray-400"   },
 };
 
 // ── スキル検索タブ ──────────────────────────────────────────────
