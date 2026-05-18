@@ -78,7 +78,9 @@ function normalizeImage(dataUrl: string): Promise<string> {
       const canvas = document.createElement("canvas");
       canvas.width = Math.round(img.width * scale);
       canvas.height = Math.round(img.height * scale);
-      canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const ctx = canvas.getContext("2d")!;
+      ctx.filter = "grayscale(1) contrast(1.5)";
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       resolve(canvas.toDataURL("image/jpeg", 0.92));
     };
     img.onerror = () => reject(new Error("画像変換失敗"));
@@ -100,10 +102,30 @@ const GROUP_SKILLS = [
 ];
 const ALL_SKILLS = [...SERIES_SKILLS, ...GROUP_SKILLS];
 
+const OCR_CORRECTIONS: [RegExp, string][] = [
+  [/竜/g, "龍"],       // 龍/竜 混同
+  [/謁/g, "黙"],       // 黙示録の誤認識
+  [/示録/g, "示録"],   // そのまま
+  [/已/g, "己"],
+  [/巨載/g, "巨戟"],
+  [/巨蔵/g, "巨戟"],
+  [/戟$/g, "戟"],
+  [/鉄/g, "鎧"],
+  [/ヌシの魂/g, "ヌシの魂"],
+  [/ヌシの奮激/g, "ヌシの憤激"],
+  [/鱗重ね/g, "鱗重ね"],
+  [/革細工の滑牲/g, "革細工の滑性"],
+  [/甲虫の知ら世/g, "甲虫の知らせ"],
+];
+
 function normalize(s: string): string {
-  return s.replace(/\s/g, "").replace(/[Ａ-Ｚａ-ｚ０-９]/g, c =>
+  let r = s.replace(/\s/g, "").replace(/[Ａ-Ｚａ-ｚ０-９]/g, c =>
     String.fromCharCode(c.charCodeAt(0) - 0xFEE0)
   ).replace(/[^　-鿿＀-￯]/g, "");
+  for (const [pattern, replacement] of OCR_CORRECTIONS) {
+    r = r.replace(pattern, replacement);
+  }
+  return r;
 }
 
 // OCRゆらぎに対応したファジーマッチング（文字列の部分シーケンス一致率で判定）
@@ -153,6 +175,11 @@ async function analyzeScreenshot(
         onProgress(`🔍 文字認識中... ${pct}%`);
       }
     },
+  });
+  const { PSM } = await import("tesseract.js");
+  await worker.setParameters({
+    tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
+    preserve_interword_spaces: "0",
   });
   try {
     const { data: { text } } = await worker.recognize(dataUrl);
@@ -271,7 +298,7 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
         setDb(next);
         saveDB(next);
         setNVal(v => String(parseInt(v) + 1));
-        setLog(`✓ 自動保存: ${entry.weapon}(${entry.element}) #${entry.n}\nスキル: ${entry.skill1} / ${entry.skill2}`);
+        setLog(`✓ 自動保存: ${entry.weapon}(${entry.element}) #${entry.n}\nスキル: ${entry.skill1} / ${entry.skill2}\n[OCR]: ${result._rawText?.slice(0, 200) || "(空)"}`);
         setImgSrc(null);
       } else {
         // 取れた情報をフォームにセットして手動保存を促す
@@ -357,10 +384,19 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
     <div className="space-y-3">
       <p className="text-xs text-gray-400">スクショをアップロードすると武器種・属性・スキルを自動読み取りします</p>
       <p className="text-xs text-gray-300">※無料の読み取りエンジンを使用しているため精度が低い場合があります。うまく読み取れないときは手入力でご利用ください。</p>
-      <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 space-y-0.5">
-        <p className="text-xs text-amber-700 font-medium">📌 スクショの撮り方</p>
-        <p className="text-xs text-amber-600">武器名〜グループスキルが映る範囲だけを切り取ってください。画面全体だと読み取り精度が大きく下がります。</p>
-        <p className="text-xs text-amber-600">読み取れなかった項目はフォームから手入力できます。</p>
+      <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 space-y-1">
+        <p className="text-xs text-amber-700 font-medium">📌 精度を上げるスクショの撮り方</p>
+        <p className="text-xs text-amber-600">切り取り範囲の目安：</p>
+        <div className="text-xs text-amber-700 font-mono bg-amber-100 rounded px-2 py-1 space-y-0.5">
+          <p>┌─────────────────┐</p>
+          <p>│ 武器名（例：永訣の〜）│ ← ここから</p>
+          <p>│ 火属性タイプ　　　　│</p>
+          <p>│ 発動スキル　　　　　│</p>
+          <p>│ ◯◯龍の黙示録　　│</p>
+          <p>│ ヌシの魂　　　　　　│ ← ここまで</p>
+          <p>└─────────────────┘</p>
+        </div>
+        <p className="text-xs text-amber-600">画面全体・ゲームUI全域は精度が大きく下がります。読み取れない項目は手入力してください。</p>
       </div>
       <div
         onPaste={handlePaste}
