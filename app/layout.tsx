@@ -17,6 +17,9 @@ export const metadata: Metadata = {
   title: "巨戟アーティアスキル厳選補助ツール | MHWs",
   description: "モンスターハンターワイルズ（MHWs）の巨戟アーティア武器スキル厳選をサポート。スクショOCRで自動記録、スキル検索、統計表示に対応。スマホ・PC両対応。",
   keywords: ["モンスターハンターワイルズ", "MHWs", "アーティア", "スキル厳選", "巨戟", "武器", "ツール"],
+  verification: {
+    google: "Ys1cFoLHlir72ZiYxURZmYzk62hkDlK2Ca2ZHQ1lsjg",
+  },
   openGraph: {
     title: "巨戟アーティアスキル厳選補助ツール | MHWs",
     description: "MHWsのアーティア武器スキル厳選をサポート。スクショ自動読み取り・スキル検索対応。",
