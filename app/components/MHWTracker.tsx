@@ -59,7 +59,7 @@ const SERIES_SKILL_EN: Record<string, string> = {
   "鎖刃竜の飢餓":"Arkveld's Hunger","千刃竜の闘志":"Seregios's Tenacity",
   "凍峰竜の反逆":"Jin Dahaad's Revolt","波衣竜の守護":"Uth Duna's Cover",
   "闢獣の力":"Doshaguma's Might","雪獅子の闘志":"Blangonga's Spirit",
-  "鎧竜の守護":"Gravios's Protection","祝謡の祈り":"Lumenhymn Prayer",
+  "鎧竜の守護":"Gravios's Protection",
 };
 const GROUP_SKILL_EN: Record<string, string> = {
   "ヌシの魂":"Lord's Soul","ヌシの憤激":"Lord's Fury","ヌシの誇り":"Lord's Pride",
@@ -68,8 +68,7 @@ const GROUP_SKILL_EN: Record<string, string> = {
   "毛皮の昂揚":"Fortifying Pelt","毛皮の誘惑":"Alluring Pelt",
   "甲虫の擬態":"Neopteron Camouflage","甲虫の知らせ":"Neopteron Alert",
   "護竜の守り":"Guardian's Protection","護竜の脈動":"Guardian's Pulse",
-  "先達の導き":"Imparted Wisdom","栄光の誉れ":"Glory's Favor",
-  "拳を極めし者":"Master of the Fist","祝祭の巡り":"Festival Spirit",
+  "先達の導き":"Imparted Wisdom",
 };
 
 function sLabel(jp: string, lang: string): string {
@@ -179,13 +178,12 @@ const SERIES_SKILLS = [
   "巨戟龍の黙示録","黒蝕竜の力","兇爪竜の力","白熾龍の脈動","泡狐竜の力","雷顎竜の闘志",
   "暗器蛸の力","暗黒騎士の証","オメガレゾナンス","海竜の渦雷","火竜の力",
   "煌雷竜の力","獄焔蛸の反逆","護鎖刃竜の命脈","鎖刃竜の飢餓","千刃竜の闘志",
-  "凍峰竜の反逆","波衣竜の守護","闢獣の力","雪獅子の闘志","鎧竜の守護","祝謡の祈り",
+  "凍峰竜の反逆","波衣竜の守護","闢獣の力","雪獅子の闘志","鎧竜の守護",
 ];
 const GROUP_SKILLS = [
   "ヌシの魂","ヌシの憤激","ヌシの誇り","鱗重ねの工夫","鱗張りの技法",
   "革細工の滑性","革細工の柔性","毛皮の昂揚","毛皮の誘惑",
   "甲虫の擬態","甲虫の知らせ","護竜の守り","護竜の脈動","先達の導き",
-  "栄光の誉れ","拳を極めし者","祝祭の巡り",
 ];
 const ALL_SKILLS = [...SERIES_SKILLS, ...GROUP_SKILLS];
 
