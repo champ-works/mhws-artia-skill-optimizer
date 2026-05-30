@@ -83,6 +83,45 @@ function eLabel(jp: string, lang: string): string {
   return lang === "en" ? (ELEM_EN[jp] || jp) : jp;
 }
 
+// ── EN→JP 逆引きマップ（英語OCR用） ──────────────────────────────
+const ARTIA_WEAPON_EN_REVERSE: Record<string, string> = {
+  "Ostrak Oblivion":"忘却のオストランツァ","Headsman's Hamus":"斬罪のエルガンシオ",
+  "Kyrie Verd":"破滅のキリエヴェルド","Eternal Cusp":"永訣のクラウクライス",
+  "Bound Admonition":"禁戒のデスヴァンケル","Onyx Choros":"闇黒のテルプリティカ",
+  "Aether Pike":"天涯のゲガルンロウ","Auguring Omen":"前兆のプロフェネシス",
+  "Wicked Regnum":"邪執のコンキエレガン","Promised Abyss":"代償のネイディ・ギア",
+  "Limbo Llor":"堕在のラクリエリカ","Bethorned Agony":"荊冠のデストレーター",
+  "Trembling Hels":"戦慄のヘルシャフェン","Calamitous Angel":"亡国のクピドバイン",
+  "Artian":"巨戟アーティア",
+};
+
+const ELEM_EN_KEYWORDS: [string[], string][] = [
+  [["Fire"], "火"], [["Water"], "水"], [["Thunder","Lightning"], "雷"],
+  [["Ice"], "氷"], [["Dragon"], "龍"], [["Non-elem","Non-element","None","Null"], "無"],
+  [["Poison"], "毒"], [["Paralysis"], "麻痺"], [["Sleep"], "睡眠"], [["Blast"], "爆破"],
+];
+
+const ALL_SKILLS_EN: [string, string][] = [
+  ...Object.entries(SERIES_SKILL_EN).map(([jp, en]) => [en, jp] as [string, string]),
+  ...Object.entries(GROUP_SKILL_EN).map(([jp, en]) => [en, jp] as [string, string]),
+];
+
+function findBestSkillMatchEN(text: string): string {
+  const t = text.toLowerCase();
+  for (const [en, jp] of ALL_SKILLS_EN) {
+    if (t.includes(en.toLowerCase())) return jp;
+  }
+  let best = ""; let bestScore = 0;
+  for (const [en, jp] of ALL_SKILLS_EN) {
+    const words = en.toLowerCase().split(" ").filter(w => w.length > 3);
+    if (words.length === 0) continue;
+    const matched = words.filter(w => t.includes(w)).length;
+    const score = matched / words.length;
+    if (score >= 0.6 && score > bestScore) { bestScore = score; best = jp; }
+  }
+  return best;
+}
+
 export interface Entry {
   id: number;
   n: number;
@@ -208,19 +247,24 @@ function findBestSkillMatch(text: string): string {
 
 async function analyzeScreenshot(
   dataUrl: string,
-  onProgress: (msg: string) => void
+  onProgress: (msg: string) => void,
+  lang: string
 ): Promise<{ weaponName: string; weapon: string; element: string; skill1: string; skill2: string; _rawText?: string }> {
-  onProgress("🔄 画像を最適化中...");
+  const isEN = lang === "en";
+  onProgress(isEN ? "🔄 Optimizing image..." : "🔄 画像を最適化中...");
   dataUrl = await normalizeImage(dataUrl);
   const { createWorker } = await import("tesseract.js");
-  onProgress("🔄 OCRエンジンを起動中...");
-  const worker = await createWorker("jpn", 1, {
+  onProgress(isEN ? "🔄 Starting OCR engine..." : "🔄 OCRエンジンを起動中...");
+  const ocrLang = isEN ? "eng" : "jpn";
+  const worker = await createWorker(ocrLang, 1, {
     logger: (m: { status: string; progress: number }) => {
       const pct = Math.round((m.progress || 0) * 100);
       if (m.status === "loading language traineddata") {
-        onProgress(`⬇️ 日本語データを読み込み中... ${pct}%\n（初回のみ時間がかかります。このままお待ちください）`);
+        onProgress(isEN
+          ? `⬇️ Loading language data... ${pct}%\n(This may take a moment on first use)`
+          : `⬇️ 言語データを読み込み中... ${pct}%\n（初回のみ時間がかかります。このままお待ちください）`);
       } else if (m.status === "recognizing text") {
-        onProgress(`🔍 文字認識中... ${pct}%`);
+        onProgress(isEN ? `🔍 Recognizing text... ${pct}%` : `🔍 文字認識中... ${pct}%`);
       }
     },
   });
@@ -232,48 +276,61 @@ async function analyzeScreenshot(
   try {
     const { data: { text } } = await worker.recognize(dataUrl);
     const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
-    // スペースを除去した行（マッチング用）
-    const linesNoSpace = lines.map(l => l.replace(/\s/g, ""));
 
-    // 武器名を探す（完全一致→ファジーマッチの順で試みる）
-    // OCR全テキストを1行に結合してもマッチできるようにする
-    const fullText = linesNoSpace.join("");
     let weaponName = "";
-    // まず完全一致
-    for (const key of Object.keys(ARTIA_WEAPON_MAP)) {
-      if (fullText.includes(normalize(key))) { weaponName = key; break; }
-    }
-    // ファジーマッチ（カタカナ部分が長いので0.55以上で採用）
-    if (!weaponName) {
-      let best = ""; let bestScore = 0;
-      for (const key of Object.keys(ARTIA_WEAPON_MAP)) {
-        const score = fuzzyScore(fullText, normalize(key));
-        if (score >= 0.55 && score > bestScore) { bestScore = score; best = key; }
-      }
-      weaponName = best;
-    }
-
-    // 属性を探す（スペース除去してマッチ）
     let element = "";
-    for (const norm of linesNoSpace) {
-      for (const el of ["火","水","雷","氷","龍","無"]) {
-        if (norm.includes(el + "属性") || norm.includes(el + "タイプ")) {
-          element = el;
-          break;
+    const skills: string[] = [];
+
+    if (isEN) {
+      // ── 英語OCRパス ──
+      const fullText = lines.join(" ");
+      // 武器名（EN→JP逆引き）
+      for (const [en, jp] of Object.entries(ARTIA_WEAPON_EN_REVERSE)) {
+        if (fullText.toLowerCase().includes(en.toLowerCase())) { weaponName = jp; break; }
+      }
+      // 属性
+      for (const [keywords, jpEl] of ELEM_EN_KEYWORDS) {
+        if (keywords.some(k => fullText.toLowerCase().includes(k.toLowerCase()))) {
+          element = jpEl; break;
         }
       }
-      if (element) break;
+      // スキル
+      for (const line of lines) {
+        const match = findBestSkillMatchEN(line);
+        if (match && !skills.includes(match)) skills.push(match);
+        if (skills.length >= 2) break;
+      }
+    } else {
+      // ── 日本語OCRパス ──
+      const linesNoSpace = lines.map(l => l.replace(/\s/g, ""));
+      const fullText = linesNoSpace.join("");
+      // 武器名
+      for (const key of Object.keys(ARTIA_WEAPON_MAP)) {
+        if (fullText.includes(normalize(key))) { weaponName = key; break; }
+      }
+      if (!weaponName) {
+        let best = ""; let bestScore = 0;
+        for (const key of Object.keys(ARTIA_WEAPON_MAP)) {
+          const score = fuzzyScore(fullText, normalize(key));
+          if (score >= 0.55 && score > bestScore) { bestScore = score; best = key; }
+        }
+        weaponName = best;
+      }
+      // 属性
+      for (const norm of linesNoSpace) {
+        for (const el of ["火","水","雷","氷","龍","無"]) {
+          if (norm.includes(el + "属性") || norm.includes(el + "タイプ")) { element = el; break; }
+        }
+        if (element) break;
+      }
+      // スキル
+      for (const norm of linesNoSpace) {
+        const match = findBestSkillMatch(norm);
+        if (match && !skills.includes(match)) skills.push(match);
+        if (skills.length >= 2) break;
+      }
     }
 
-    // スキルを探す（スペース除去してマッチ）
-    const skills: string[] = [];
-    for (const norm of linesNoSpace) {
-      const match = findBestSkillMatch(norm);
-      if (match && !skills.includes(match)) skills.push(match);
-      if (skills.length >= 2) break;
-    }
-
-    // シリーズスキル(skill1)とグループスキル(skill2)に分類
     const seriesFound = skills.filter(s => SERIES_SKILLS.includes(s));
     const groupFound  = skills.filter(s => GROUP_SKILLS.includes(s));
 
@@ -320,9 +377,9 @@ function CaptureTab({ db, setDb, lang }: { db: Entry[]; setDb: (d: Entry[]) => v
 
   const processImageSrc = async (src: string) => {
     setImgSrc(src);
-    setLog("🔄 画像受信...");
+    setLog(lang === "en" ? "🔄 Receiving image..." : "🔄 画像受信...");
     try {
-        const result = await analyzeScreenshot(src, setLog);
+      const result = await analyzeScreenshot(src, setLog, lang);
       const resolvedWeapon = (() => {
         const guessed = guessWeaponFromName(result.weaponName);
         if (guessed) return guessed;
@@ -332,7 +389,6 @@ function CaptureTab({ db, setDb, lang }: { db: Entry[]; setDb: (d: Entry[]) => v
       const resolvedElement = (result.element && result.element !== "不明" && ELEMENTS.includes(result.element))
         ? result.element : "";
 
-      // 武器種と属性が取れた場合に自動保存（スキルは任意）
       if (resolvedWeapon && resolvedElement) {
         const entry: Entry = {
           id: Date.now(),
@@ -356,15 +412,16 @@ function CaptureTab({ db, setDb, lang }: { db: Entry[]; setDb: (d: Entry[]) => v
           : `✓ 自動保存: ${entry.n}回目 ${entry.weapon}(${entry.element})\nスキル: ${entry.skill1 || "シリーズスキル読取不可"} / ${entry.skill2 || "グループスキル読取不可"}`);
         setImgSrc(null);
       } else {
-        // 取れた情報をフォームにセットして手動保存を促す
         if (result.skill1) setSkill1(result.skill1);
         if (result.skill2) setSkill2(result.skill2);
         if (resolvedWeapon) setWeapon(resolvedWeapon);
         if (resolvedElement) setElement(resolvedElement);
-        const missing = [];
-        if (!resolvedWeapon) missing.push("武器種");
-        if (!resolvedElement) missing.push("属性");
-        setLog(`⚠️ ${missing.join("・")}が読み取れませんでした。フォームで確認して「記録を保存」を押してください。\n[OCR生テキスト]: ${result._rawText?.slice(0, 200) || "(空)"}`);
+        const missing = lang === "en"
+          ? [...(!resolvedWeapon ? ["weapon type"] : []), ...(!resolvedElement ? ["element"] : [])]
+          : [...(!resolvedWeapon ? ["武器種"] : []), ...(!resolvedElement ? ["属性"] : [])];
+        setLog(lang === "en"
+          ? `⚠️ Could not detect: ${missing.join(", ")}. Please fill in manually and press "Save Record".\n[OCR raw]: ${result._rawText?.slice(0, 200) || "(empty)"}`
+          : `⚠️ ${missing.join("・")}が読み取れませんでした。フォームで確認して「記録を保存」を押してください。\n[OCR生テキスト]: ${result._rawText?.slice(0, 200) || "(空)"}`);
       }
     } catch (err) {
       setLog("❌ " + ((err as Error).message || String(err)));
@@ -410,14 +467,14 @@ function CaptureTab({ db, setDb, lang }: { db: Entry[]; setDb: (d: Entry[]) => v
   };
 
   const handleSave = () => {
-    if (!weapon || !element) { setSaveMsg("武器種と属性は必須です"); return; }
+    if (!weapon || !element) { setSaveMsg(lang==="en" ? "Weapon type and element are required" : "武器種と属性は必須です"); return; }
     if (editingId !== null) {
       const next = db.map(e => e.id === editingId ? { ...e, weapon, element, skill1, skill2 } : e);
       setDb(next); saveDB(next);
       setEditingId(null);
       setSkill1(""); setSkill2("");
       setImgSrc(null); setLog(null);
-      setSaveMsg("✓ 更新しました");
+      setSaveMsg(lang==="en" ? "✓ Updated" : "✓ 更新しました");
     } else {
       const entry: Entry = {
         id: Date.now(),
@@ -433,7 +490,7 @@ function CaptureTab({ db, setDb, lang }: { db: Entry[]; setDb: (d: Entry[]) => v
       setGuideOpen(false);
       setLastSavedId(entry.id);
       setTimeout(() => setLastSavedId(null), 3000);
-      setSaveMsg(`✓ 保存しました（保存済み${next.length}件）`);
+      setSaveMsg(lang==="en" ? `✓ Saved (${next.length} records total)` : `✓ 保存しました（保存済み${next.length}件）`);
     }
     setTimeout(() => setSaveMsg(null), 3000);
   };
@@ -447,30 +504,51 @@ function CaptureTab({ db, setDb, lang }: { db: Entry[]; setDb: (d: Entry[]) => v
           onClick={() => setGuideOpen(v => !v)}
           className="w-full flex items-center justify-between px-3 py-2 bg-gray-50 text-xs text-gray-600 font-medium cursor-pointer"
         >
-          <span>📖 使い方ガイド</span>
-          <span className="text-gray-400">{guideOpen ? "▲ 閉じる" : "▼ 開く"}</span>
+          <span>{lang==="en" ? "📖 How to Use" : "📖 使い方ガイド"}</span>
+          <span className="text-gray-400">{guideOpen ? (lang==="en" ? "▲ Close" : "▲ 閉じる") : (lang==="en" ? "▼ Open" : "▼ 開く")}</span>
         </button>
         {guideOpen && (
           <div className="px-3 py-2 space-y-2">
-            <ul className="text-xs text-gray-500 space-y-1.5 list-none">
-              <li>📷 スクショをアップロードすると武器種・属性・スキルを自動読み取りして保存します（静止画のみ対応）</li>
-              <li>✏️ 読み取れない場合は武器種・属性を手動で選択して「記録を保存」を押してください</li>
-              <li>🔢 n回目はリロール回数です。保存するたびに自動カウントアップ。タイトルに戻るときはリセットボタンで1回目に戻してください</li>
-              <li>☑️ テーブルのセルをタップすると青枠でマーク（回収候補スキルの目印に）</li>
-              <li>🔍 スキル検索タブで特定スキルが何回目にあるか検索できます</li>
-              <li className="text-gray-400">※無料の読み取りエンジンを使用しているため精度が低い場合があります。うまく読み取れないときは手入力でご利用ください。</li>
-            </ul>
-            <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 space-y-1">
-              <p className="text-xs text-amber-700 font-medium">📌 OCR精度を上げるスクショの撮り方</p>
-              <p className="text-xs text-amber-600">切り取り範囲の目安（武器名〜スキル一覧）：</p>
-              <ul className="text-xs text-amber-700 bg-amber-100 rounded px-3 py-1.5 space-y-0.5 list-none">
-                <li>▶ 武器名（例：永訣の〜）　← ここから</li>
-                <li>　 火属性タイプ</li>
-                <li>　 発動スキル</li>
-                <li>　 巨戟龍の黙示録</li>
-                <li>　 ヌシの魂　　　　← ここまで</li>
+            {lang === "en" ? (
+              <ul className="text-xs text-gray-500 space-y-1.5 list-none">
+                <li>📷 Upload a screenshot to auto-detect weapon type, element &amp; skills (still images only)</li>
+                <li>✏️ If detection fails, select weapon type &amp; element manually then press &quot;Save Record&quot;</li>
+                <li>🔢 &quot;Roll #&quot; tracks reroll count. Auto-increments on each save. Press Reset when returning to title screen</li>
+                <li>☑️ Tap a cell to mark it with a blue ring (bookmark skills you want to collect)</li>
+                <li>🔍 Use the Skill Search tab to find which roll number has a specific skill</li>
+                <li className="text-gray-400">※ Uses a free OCR engine — accuracy may vary. Manual input is recommended if OCR fails.</li>
               </ul>
-              <p className="text-xs text-amber-600">画面全体・ゲームUI全域は精度が大きく下がります。読み取れない項目は手入力してください。</p>
+            ) : (
+              <ul className="text-xs text-gray-500 space-y-1.5 list-none">
+                <li>📷 スクショをアップロードすると武器種・属性・スキルを自動読み取りして保存します（静止画のみ対応）</li>
+                <li>✏️ 読み取れない場合は武器種・属性を手動で選択して「記録を保存」を押してください</li>
+                <li>🔢 n回目はリロール回数です。保存するたびに自動カウントアップ。タイトルに戻るときはリセットボタンで1回目に戻してください</li>
+                <li>☑️ テーブルのセルをタップすると青枠でマーク（回収候補スキルの目印に）</li>
+                <li>🔍 スキル検索タブで特定スキルが何回目にあるか検索できます</li>
+                <li className="text-gray-400">※無料の読み取りエンジンを使用しているため精度が低い場合があります。うまく読み取れないときは手入力でご利用ください。</li>
+              </ul>
+            )}
+            <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 space-y-1">
+              <p className="text-xs text-amber-700 font-medium">{lang==="en" ? "📌 Tips for better OCR accuracy" : "📌 OCR精度を上げるスクショの撮り方"}</p>
+              <p className="text-xs text-amber-600">{lang==="en" ? "Recommended crop area (weapon name to skill list):" : "切り取り範囲の目安（武器名〜スキル一覧）："}</p>
+              {lang === "en" ? (
+                <ul className="text-xs text-amber-700 bg-amber-100 rounded px-3 py-1.5 space-y-0.5 list-none">
+                  <li>▶ Weapon name (e.g.: Eternal Cusp) ← start here</li>
+                  <li>　 Fire Element Type</li>
+                  <li>　 Active Skills</li>
+                  <li>　 Gogmapocalypse</li>
+                  <li>　 Lord&apos;s Soul　　　　← end here</li>
+                </ul>
+              ) : (
+                <ul className="text-xs text-amber-700 bg-amber-100 rounded px-3 py-1.5 space-y-0.5 list-none">
+                  <li>▶ 武器名（例：永訣の〜）　← ここから</li>
+                  <li>　 火属性タイプ</li>
+                  <li>　 発動スキル</li>
+                  <li>　 巨戟龍の黙示録</li>
+                  <li>　 ヌシの魂　　　　← ここまで</li>
+                </ul>
+              )}
+              <p className="text-xs text-amber-600">{lang==="en" ? "Capturing the full screen degrades accuracy. Use manual input for undetected fields." : "画面全体・ゲームUI全域は精度が大きく下がります。読み取れない項目は手入力してください。"}</p>
             </div>
           </div>
         )}
@@ -481,7 +559,7 @@ function CaptureTab({ db, setDb, lang }: { db: Entry[]; setDb: (d: Entry[]) => v
       >
         <div className="text-3xl mb-2">📷</div>
         <label style={{ position: "relative", display: "inline-block", cursor: "pointer" }}>
-          <span className="text-sm text-blue-500 underline">タップしてアップロード</span>
+          <span className="text-sm text-blue-500 underline">{lang==="en" ? "Tap to upload" : "タップしてアップロード"}</span>
           <input
             type="file"
             accept="image/*"
@@ -489,7 +567,7 @@ function CaptureTab({ db, setDb, lang }: { db: Entry[]; setDb: (d: Entry[]) => v
             style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer" }}
           />
         </label>
-        <div className="text-xs text-gray-300 mt-1">PCはここをクリック後 Ctrl+V で貼り付け可</div>
+        <div className="text-xs text-gray-300 mt-1">{lang==="en" ? "PC: Click here then Ctrl+V to paste" : "PCはここをクリック後 Ctrl+V で貼り付け可"}</div>
       </div>
 
       {imgSrc && <img src={imgSrc} className="w-full max-h-44 object-contain rounded-lg border border-gray-100" alt="preview" />}
@@ -505,7 +583,7 @@ function CaptureTab({ db, setDb, lang }: { db: Entry[]; setDb: (d: Entry[]) => v
       {/* n回目 + リセット */}
       <div className="flex items-center gap-2">
         <div>
-          <label className="text-xs text-gray-400 block mb-1">n回目</label>
+          <label className="text-xs text-gray-400 block mb-1">{lang==="en" ? "Roll #" : "n回目"}</label>
           <div className="flex items-center gap-1">
             <button type="button" onClick={() => setNVal(v => String(Math.max(1, parseInt(v) - 1)))}
               className="w-7 h-8 border border-gray-200 rounded-lg text-gray-500 text-sm cursor-pointer">−</button>
@@ -519,7 +597,7 @@ function CaptureTab({ db, setDb, lang }: { db: Entry[]; setDb: (d: Entry[]) => v
           type="button"
           onClick={() => { setNVal("1"); setWeapon(""); setElement(""); setSkill1(""); setSkill2(""); setImgSrc(null); setLog(null); setSaveMsg(null); }}
           className="mt-5 px-3 py-2 text-xs border border-gray-200 rounded-lg text-gray-400 cursor-pointer"
-        >リセット</button>
+        >{lang==="en" ? "Reset" : "リセット"}</button>
       </div>
 
       {/* 武器種ボタン */}
@@ -587,7 +665,7 @@ function CaptureTab({ db, setDb, lang }: { db: Entry[]; setDb: (d: Entry[]) => v
         db.forEach(e => { cellMap[`${e.n}/${e.weapon}/${e.element}`] = e; });
 
         const delEntry = (id: number) => {
-          if (!confirm("削除しますか？")) return;
+          if (!confirm(lang==="en" ? "Delete this entry?" : "削除しますか？")) return;
           const next = db.filter(e => e.id !== id);
           setDb(next); saveDB(next);
         };
@@ -595,7 +673,7 @@ function CaptureTab({ db, setDb, lang }: { db: Entry[]; setDb: (d: Entry[]) => v
         const handleCheck = (key: string, n: number) => {
           const rowKey = Object.keys(checked).find(k => checked[k] && k.startsWith(`${n}/`) && k !== key);
           if (rowKey) {
-            if (!confirm("同じ行に既にチェックがあります。入れ替えますか？")) return;
+            if (!confirm(lang==="en" ? "This row already has a bookmark. Replace it?" : "同じ行に既にチェックがあります。入れ替えますか？")) return;
             setChecked(prev => ({ ...prev, [rowKey]: false, [key]: true }));
             return;
           }
@@ -603,15 +681,15 @@ function CaptureTab({ db, setDb, lang }: { db: Entry[]; setDb: (d: Entry[]) => v
         };
 
         const clearAll = () => {
-          if (!confirm("全記録を削除しますか？")) return;
+          if (!confirm(lang==="en" ? "Delete all records?" : "全記録を削除しますか？")) return;
           setDb([]); saveDB([]); setChecked({}); setNVal("1");
         };
 
         return (
           <div className="mt-4 space-y-2">
             <div className="flex items-center justify-between">
-              <p className="text-xs text-gray-400">行=n回目 / 列=武器種+属性<br />セルをタップで回収したいスキルをマーク（1行1つ）</p>
-              <button type="button" onClick={clearAll} className="text-xs text-red-300 border border-red-200 rounded px-2 py-0.5 cursor-pointer">全クリア</button>
+              <p className="text-xs text-gray-400">{lang==="en" ? "Row=Roll# / Col=Weapon+Element" : "行=n回目 / 列=武器種+属性"}<br />{lang==="en" ? "Tap a cell to bookmark a skill (1 per row)" : "セルをタップで回収したいスキルをマーク（1行1つ）"}</p>
+              <button type="button" onClick={clearAll} className="text-xs text-red-300 border border-red-200 rounded px-2 py-0.5 cursor-pointer">{lang==="en" ? "Clear All" : "全クリア"}</button>
             </div>
             <div className="overflow-x-auto">
               <table className="text-xs border-collapse min-w-full bg-white text-gray-800">
@@ -799,7 +877,7 @@ function StatsTab({ db, lang }: { db: Entry[]; lang: string }) {
           </div>
         </div>
       )}
-      {db.length === 0 && <div className="text-center py-12 text-gray-300 text-sm">データがありません</div>}
+      {db.length === 0 && <div className="text-center py-12 text-gray-300 text-sm">{lang==="en" ? "No data yet" : "データがありません"}</div>}
     </div>
   );
 }
