@@ -36,6 +36,53 @@ const ARTIA_WEAPON_MAP: Record<string, string> = {
   "亡国のクピドバイン":"弓",
 };
 
+// ── 英語翻訳マップ ───────────────────────────────────────────────
+const WEAPON_EN: Record<string, string> = {
+  "大剣":"Great Sword","太刀":"Long Sword","片手剣":"Sword & Shield",
+  "双剣":"Dual Blades","ハンマー":"Hammer","狩猟笛":"Hunting Horn",
+  "ランス":"Lance","ガンス":"Gunlance","スラアク":"Switch Axe",
+  "チャアク":"Charge Blade","操虫棍":"Insect Glaive",
+  "ライト":"Light Bowgun","ヘビィ":"Heavy Bowgun","弓":"Bow",
+};
+const ELEM_EN: Record<string, string> = {
+  "火":"Fire","水":"Water","雷":"Thunder","氷":"Ice","龍":"Dragon",
+  "無":"Non-elem","毒":"Poison","麻痺":"Paralysis","睡眠":"Sleep","爆破":"Blast",
+};
+const SERIES_SKILL_EN: Record<string, string> = {
+  "巨戟龍の黙示録":"Gogmapocalypse","黒蝕竜の力":"Gore Magala's Tyranny",
+  "兇爪竜の力":"Ebony Odogaron's Power","白熾龍の脈動":"Zoh Shia's Pulse",
+  "泡狐竜の力":"Mizutsune's Prowess","雷顎竜の闘志":"Fulgur Anjanath's Will",
+  "暗器蛸の力":"Xu Wu's Vigor","暗黒騎士の証":"Soul of the Dark Knight",
+  "オメガレゾナンス":"Omega Resonance","海竜の渦雷":"Leviathan's Fury",
+  "火竜の力":"Rathalos's Flare","煌雷竜の力":"Rey Dau's Voltage",
+  "獄焔蛸の反逆":"Nu Udra's Mutiny","護鎖刃竜の命脈":"Guardian Arkveld's Vitality",
+  "鎖刃竜の飢餓":"Arkveld's Hunger","千刃竜の闘志":"Seregios's Tenacity",
+  "凍峰竜の反逆":"Jin Dahaad's Revolt","波衣竜の守護":"Uth Duna's Cover",
+  "闢獣の力":"Doshaguma's Might","雪獅子の闘志":"Blangonga's Spirit",
+  "鎧竜の守護":"Gravios's Protection","祝謡の祈り":"Lumenhymn Prayer",
+};
+const GROUP_SKILL_EN: Record<string, string> = {
+  "ヌシの魂":"Lord's Soul","ヌシの憤激":"Lord's Fury","ヌシの誇り":"Lord's Pride",
+  "鱗重ねの工夫":"Scale Layering","鱗張りの技法":"Scale Craft",
+  "革細工の滑性":"Buttery Leathercraft","革細工の柔性":"Flexible Leathercraft",
+  "毛皮の昂揚":"Fortifying Pelt","毛皮の誘惑":"Alluring Pelt",
+  "甲虫の擬態":"Neopteron Camouflage","甲虫の知らせ":"Neopteron Alert",
+  "護竜の守り":"Guardian's Protection","護竜の脈動":"Guardian's Pulse",
+  "先達の導き":"Imparted Wisdom","栄光の誉れ":"Glory's Favor",
+  "拳を極めし者":"Master of the Fist","祝祭の巡り":"Festival Spirit",
+};
+
+function sLabel(jp: string, lang: string): string {
+  if (lang !== "en") return jp;
+  return SERIES_SKILL_EN[jp] || GROUP_SKILL_EN[jp] || jp;
+}
+function wLabel(jp: string, lang: string): string {
+  return lang === "en" ? (WEAPON_EN[jp] || jp) : jp;
+}
+function eLabel(jp: string, lang: string): string {
+  return lang === "en" ? (ELEM_EN[jp] || jp) : jp;
+}
+
 export interface Entry {
   id: number;
   n: number;
@@ -93,12 +140,13 @@ const SERIES_SKILLS = [
   "巨戟龍の黙示録","黒蝕竜の力","兇爪竜の力","白熾龍の脈動","泡狐竜の力","雷顎竜の闘志",
   "暗器蛸の力","暗黒騎士の証","オメガレゾナンス","海竜の渦雷","火竜の力",
   "煌雷竜の力","獄焔蛸の反逆","護鎖刃竜の命脈","鎖刃竜の飢餓","千刃竜の闘志",
-  "凍峰竜の反逆","波衣竜の守護","闢獣の力","雪獅子の闘志","鎧竜の守護",
+  "凍峰竜の反逆","波衣竜の守護","闢獣の力","雪獅子の闘志","鎧竜の守護","祝謡の祈り",
 ];
 const GROUP_SKILLS = [
   "ヌシの魂","ヌシの憤激","ヌシの誇り","鱗重ねの工夫","鱗張りの技法",
   "革細工の滑性","革細工の柔性","毛皮の昂揚","毛皮の誘惑",
   "甲虫の擬態","甲虫の知らせ","護竜の守り","護竜の脈動","先達の導き",
+  "栄光の誉れ","拳を極めし者","祝祭の巡り",
 ];
 const ALL_SKILLS = [...SERIES_SKILLS, ...GROUP_SKILLS];
 
@@ -251,7 +299,7 @@ function Badge({ label, colorClass }: { label: string; colorClass?: string }) {
 }
 
 // ── 記録＋テーブル統合タブ ────────────────────────────────────────
-function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void }) {
+function CaptureTab({ db, setDb, lang }: { db: Entry[]; setDb: (d: Entry[]) => void; lang: string }) {
   const [imgSrc, setImgSrc] = useState<string | null>(null);
   const [weapon, setWeapon] = useState("");
   const [element, setElement] = useState("");
@@ -303,7 +351,9 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
         setGuideOpen(false);
         setLastSavedId(entry.id);
         setTimeout(() => setLastSavedId(null), 3000);
-        setLog(`✓ 自動保存: ${entry.n}回目 ${entry.weapon}(${entry.element})\nスキル: ${entry.skill1 || "シリーズスキル読取不可"} / ${entry.skill2 || "グループスキル読取不可"}`);
+        setLog(lang === "en"
+          ? `✓ Auto-saved: Roll #${entry.n} ${wLabel(entry.weapon,lang)}(${eLabel(entry.element,lang)})\nSkills: ${entry.skill1 ? sLabel(entry.skill1,lang) : "Series skill undetected"} / ${entry.skill2 ? sLabel(entry.skill2,lang) : "Group skill undetected"}`
+          : `✓ 自動保存: ${entry.n}回目 ${entry.weapon}(${entry.element})\nスキル: ${entry.skill1 || "シリーズスキル読取不可"} / ${entry.skill2 || "グループスキル読取不可"}`);
         setImgSrc(null);
       } else {
         // 取れた情報をフォームにセットして手動保存を促す
@@ -474,12 +524,12 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
 
       {/* 武器種ボタン */}
       <div>
-        <label className="text-xs text-gray-400 block mb-1">武器種</label>
+        <label className="text-xs text-gray-400 block mb-1">{lang==="en" ? "Weapon Type" : "武器種"}</label>
         <div className="flex flex-wrap gap-1">
           {WEAPONS.map(w => (
             <button type="button" key={w} onClick={() => setWeapon(v => v === w ? "" : w)}
               className={`px-2 py-1 text-xs rounded-lg border cursor-pointer ${weapon === w ? "bg-gray-800 text-white border-gray-800" : "border-gray-200 text-gray-600"}`}>
-              {w}
+              {wLabel(w, lang)}
             </button>
           ))}
         </div>
@@ -487,12 +537,12 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
 
       {/* 属性ボタン */}
       <div>
-        <label className="text-xs text-gray-400 block mb-1">属性</label>
+        <label className="text-xs text-gray-400 block mb-1">{lang==="en" ? "Element" : "属性"}</label>
         <div className="flex flex-wrap gap-1">
           {ELEMENTS.map(el => (
             <button type="button" key={el} onClick={() => setElement(v => v === el ? "" : el)}
               className={`px-3 py-1 text-xs rounded-lg border cursor-pointer ${element === el ? `${ELEM_COLORS[el]} border-transparent font-bold` : "border-gray-200 text-gray-600"}`}>
-              {el}
+              {eLabel(el, lang)}
             </button>
           ))}
         </div>
@@ -500,17 +550,17 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
 
       {/* スキルプルダウン */}
       <div>
-        <label className="text-xs text-gray-400 block mb-1">シリーズスキル</label>
+        <label className="text-xs text-gray-400 block mb-1">{lang==="en" ? "Series Skill" : "シリーズスキル"}</label>
         <select value={skill1} onChange={e => setSkill1(e.target.value)} className="w-full border border-gray-200 rounded-lg p-2 text-sm bg-white">
-          <option value="">選択...</option>
-          {SERIES_SKILLS.map(s => <option key={s}>{s}</option>)}
+          <option value="">{lang==="en" ? "Select..." : "選択..."}</option>
+          {SERIES_SKILLS.map(s => <option key={s} value={s}>{sLabel(s, lang)}</option>)}
         </select>
       </div>
       <div>
-        <label className="text-xs text-gray-400 block mb-1">グループスキル</label>
+        <label className="text-xs text-gray-400 block mb-1">{lang==="en" ? "Group Skill" : "グループスキル"}</label>
         <select value={skill2} onChange={e => setSkill2(e.target.value)} className="w-full border border-gray-200 rounded-lg p-2 text-sm bg-white">
-          <option value="">選択...</option>
-          {GROUP_SKILLS.map(s => <option key={s}>{s}</option>)}
+          <option value="">{lang==="en" ? "Select..." : "選択..."}</option>
+          {GROUP_SKILLS.map(s => <option key={s} value={s}>{sLabel(s, lang)}</option>)}
         </select>
       </div>
 
@@ -518,14 +568,14 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
         const e = db.find(e => e.id === editingId);
         return (
           <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 flex items-center justify-between">
-            <span className="text-xs text-blue-700">✏️ {e ? `${e.n}回目 ${e.weapon}（${e.element}）を編集中` : "セルを編集中"}</span>
-            <button type="button" onClick={cancelEdit} className="text-xs text-blue-400 cursor-pointer">キャンセル</button>
+            <span className="text-xs text-blue-700">✏️ {e ? (lang==="en" ? `Editing Roll #${e.n} ${wLabel(e.weapon,lang)}(${eLabel(e.element,lang)})` : `${e.n}回目 ${e.weapon}（${e.element}）を編集中`) : (lang==="en" ? "Editing cell" : "セルを編集中")}</span>
+            <button type="button" onClick={cancelEdit} className="text-xs text-blue-400 cursor-pointer">{lang==="en" ? "Cancel" : "キャンセル"}</button>
           </div>
         );
       })()}
       {saveMsg && <p className="text-xs text-center text-green-600 font-medium">{saveMsg}</p>}
       <button type="button" onClick={handleSave} className="w-full bg-gray-900 text-white py-2.5 rounded-xl text-sm font-medium cursor-pointer">
-        {editingId !== null ? "記録を更新して保存" : "記録を保存"}
+        {editingId !== null ? (lang==="en" ? "Update & Save" : "記録を更新して保存") : (lang==="en" ? "Save Record" : "記録を保存")}
       </button>
 
       {/* ── テーブル ── */}
@@ -573,8 +623,8 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
                       return (
                         <th key={col} className="border border-gray-200 px-2 py-1 bg-gray-50 text-gray-700 whitespace-nowrap">
                           <div className="flex flex-col items-center gap-0.5">
-                            <Badge label={w} colorClass={WEAPON_COLORS[w]} />
-                            {el && <Badge label={el} colorClass={ELEM_COLORS[el]} />}
+                            <Badge label={wLabel(w,lang)} colorClass={WEAPON_COLORS[w]} />
+                            {el && <Badge label={eLabel(el,lang)} colorClass={ELEM_COLORS[el]} />}
                           </div>
                         </th>
                       );
@@ -607,9 +657,9 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
                                 </div>
                                 {/* 下段：スキル名 */}
                                 <div className="flex flex-col items-center gap-0.5">
-                                  <span className="text-xs text-gray-800">{entry.skill1 || "？"}</span>
+                                  <span className="text-xs text-gray-800">{entry.skill1 ? sLabel(entry.skill1,lang) : "？"}</span>
                                   <span className="text-xs text-gray-400">×</span>
-                                  <span className="text-xs text-gray-600">{entry.skill2 || "？"}</span>
+                                  <span className="text-xs text-gray-600">{entry.skill2 ? sLabel(entry.skill2,lang) : "？"}</span>
                                 </div>
                               </div>
                             ) : <span className="text-gray-100">—</span>}
@@ -622,8 +672,13 @@ function CaptureTab({ db, setDb }: { db: Entry[]; setDb: (d: Entry[]) => void })
               </table>
             </div>
             <div className="pt-1 space-y-0.5">
-              <p className="text-xs text-gray-400"><span className="text-yellow-500">★</span>人気シリーズスキル：巨戟龍の黙示録 / 黒蝕竜の力 / 兇爪竜の力 / 白熾龍の脈動 / 雷顎竜の闘志 / 海竜の渦雷</p>
-              <p className="text-xs text-gray-400"><span className="text-yellow-500">★</span>人気グループスキル：ヌシの魂</p>
+              {lang === "en" ? (<>
+                <p className="text-xs text-gray-400"><span className="text-yellow-500">★</span>Popular Series Skills: Gogmapocalypse / Gore Magala&apos;s Tyranny / Ebony Odogaron&apos;s Power / Zoh Shia&apos;s Pulse / Fulgur Anjanath&apos;s Will / Leviathan&apos;s Fury</p>
+                <p className="text-xs text-gray-400"><span className="text-yellow-500">★</span>Popular Group Skills: Lord&apos;s Soul</p>
+              </>) : (<>
+                <p className="text-xs text-gray-400"><span className="text-yellow-500">★</span>人気シリーズスキル：巨戟龍の黙示録 / 黒蝕竜の力 / 兇爪竜の力 / 白熾龍の脈動 / 雷顎竜の闘志 / 海竜の渦雷</p>
+                <p className="text-xs text-gray-400"><span className="text-yellow-500">★</span>人気グループスキル：ヌシの魂</p>
+              </>)}
             </div>
           </div>
         );
@@ -647,7 +702,7 @@ const SCORE_STYLES: Record<number, { bg: string; stars: string; starColor: strin
 };
 
 // ── スキル検索タブ ──────────────────────────────────────────────
-function SearchTab({ db }: { db: Entry[] }) {
+function SearchTab({ db, lang }: { db: Entry[]; lang: string }) {
   const [seriesSkill, setSeriesSkill] = useState("");
   const [groupSkill, setGroupSkill] = useState("");
   const [results, setResults] = useState<Entry[] | null>(null);
@@ -663,50 +718,50 @@ function SearchTab({ db }: { db: Entry[] }) {
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-gray-400">スキルを選んで記録済みデータの場所を検索します</p>
+      <p className="text-xs text-gray-400">{lang==="en" ? "Search recorded data by skill" : "スキルを選んで記録済みデータの場所を検索します"}</p>
       <div>
-        <label className="text-xs text-gray-400 block mb-1">シリーズスキル</label>
+        <label className="text-xs text-gray-400 block mb-1">{lang==="en" ? "Series Skill" : "シリーズスキル"}</label>
         <select value={seriesSkill} onChange={e => setSeriesSkill(e.target.value)} className="w-full border border-gray-200 rounded-lg p-2 text-sm bg-white text-gray-900">
-          <option value="">指定なし</option>
-          {SERIES_SKILLS.map(s => <option key={s}>{s}</option>)}
+          <option value="">{lang==="en" ? "Any" : "指定なし"}</option>
+          {SERIES_SKILLS.map(s => <option key={s} value={s}>{sLabel(s,lang)}</option>)}
         </select>
       </div>
       <div>
-        <label className="text-xs text-gray-400 block mb-1">グループスキル</label>
+        <label className="text-xs text-gray-400 block mb-1">{lang==="en" ? "Group Skill" : "グループスキル"}</label>
         <select value={groupSkill} onChange={e => setGroupSkill(e.target.value)} className="w-full border border-gray-200 rounded-lg p-2 text-sm bg-white text-gray-900">
-          <option value="">指定なし</option>
-          {GROUP_SKILLS.map(s => <option key={s}>{s}</option>)}
+          <option value="">{lang==="en" ? "Any" : "指定なし"}</option>
+          {GROUP_SKILLS.map(s => <option key={s} value={s}>{sLabel(s,lang)}</option>)}
         </select>
       </div>
       <button type="button" onClick={search} className="w-full bg-gray-900 text-white py-2.5 rounded-xl text-sm font-medium cursor-pointer">
-        検索
+        {lang==="en" ? "Search" : "検索"}
       </button>
       {results !== null && (
         results.length === 0
-          ? <div className="text-center py-6 text-gray-300 text-sm">該当するデータがありません</div>
+          ? <div className="text-center py-6 text-gray-300 text-sm">{lang==="en" ? "No results found" : "該当するデータがありません"}</div>
           : (
             <div className="space-y-2 pt-1">
-              <p className="text-xs text-gray-400">{results.length}件ヒット（n回目の小さい順）</p>
+              <p className="text-xs text-gray-400">{lang==="en" ? `${results.length} result(s) found` : `${results.length}件ヒット（n回目の小さい順）`}</p>
               {results.map(e => (
                 <div key={e.id} className="bg-white border border-gray-100 rounded-xl px-4 py-3">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-lg font-bold text-gray-800">{e.n}<span className="text-xs font-normal text-gray-400 ml-0.5">回目</span></span>
-                    <Badge label={e.weapon} colorClass={WEAPON_COLORS[e.weapon]} />
-                    <Badge label={e.element} colorClass={ELEM_COLORS[e.element]} />
+                    <span className="text-lg font-bold text-gray-800">{e.n}<span className="text-xs font-normal text-gray-400 ml-0.5">{lang==="en" ? "th roll" : "回目"}</span></span>
+                    <Badge label={wLabel(e.weapon,lang)} colorClass={WEAPON_COLORS[e.weapon]} />
+                    <Badge label={eLabel(e.element,lang)} colorClass={ELEM_COLORS[e.element]} />
                   </div>
-                  <div className="text-xs text-gray-500 mt-1">{e.skill1 || "？"}{e.skill2 ? ` / ${e.skill2}` : ""}</div>
+                  <div className="text-xs text-gray-500 mt-1">{e.skill1 ? sLabel(e.skill1,lang) : "？"}{e.skill2 ? ` / ${sLabel(e.skill2,lang)}` : ""}</div>
                 </div>
               ))}
             </div>
           )
       )}
-      {db.length === 0 && <div className="text-center py-6 text-gray-300 text-sm">記録タブでデータを追加してください</div>}
+      {db.length === 0 && <div className="text-center py-6 text-gray-300 text-sm">{lang==="en" ? "Add data in the Record tab" : "記録タブでデータを追加してください"}</div>}
     </div>
   );
 }
 
 // ── 統計タブ ────────────────────────────────────────────────────
-function StatsTab({ db }: { db: Entry[] }) {
+function StatsTab({ db, lang }: { db: Entry[]; lang: string }) {
   const weapons = [...new Set(db.map(e => e.weapon))].length;
   const skills: Record<string, number> = {};
   db.forEach(e => {
@@ -719,7 +774,10 @@ function StatsTab({ db }: { db: Entry[] }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
-        {([["総記録数", db.length], ["武器種数", weapons], ["最大テーブル位置", maxN], ["スキル種類", Object.keys(skills).length]] as const).map(([label, val]) => (
+        {(lang === "en"
+        ? [["Total Records", db.length], ["Weapon Types", weapons], ["Max Roll #", maxN], ["Skill Types", Object.keys(skills).length]]
+        : [["総記録数", db.length], ["武器種数", weapons], ["最大テーブル位置", maxN], ["スキル種類", Object.keys(skills).length]]
+      ).map(([label, val]) => (
           <div key={label} className="bg-gray-50 rounded-xl p-3">
             <div className="text-xs text-gray-400 mb-1">{label}</div>
             <div className="text-2xl font-semibold text-gray-900">{val}</div>
@@ -728,11 +786,11 @@ function StatsTab({ db }: { db: Entry[] }) {
       </div>
       {top.length > 0 && (
         <div>
-          <div className="text-sm font-medium text-gray-700 mb-3">出現頻度 top {top.length}</div>
+          <div className="text-sm font-medium text-gray-700 mb-3">{lang==="en" ? `Top ${top.length} Skills` : `出現頻度 top ${top.length}`}</div>
           <div className="space-y-2">
             {top.map(([name, count]) => (
               <div key={name}>
-                <div className="flex justify-between text-xs text-gray-400 mb-1"><span>{name}</span><span>{count}回</span></div>
+                <div className="flex justify-between text-xs text-gray-400 mb-1"><span>{sLabel(name,lang)}</span><span>{count}{lang==="en" ? "x" : "回"}</span></div>
                 <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                   <div className="h-full bg-gray-800 rounded-full" style={{ width: `${Math.round(count / top[0][1] * 100)}%` }} />
                 </div>
@@ -747,25 +805,35 @@ function StatsTab({ db }: { db: Entry[] }) {
 }
 
 // ── メインアプリ ────────────────────────────────────────────────
-const TABS = [
-  { id: "capture", icon: "📷", label: "記録" },
-  { id: "search",  icon: "🔍", label: "スキル検索" },
-  { id: "stats",   icon: "📊", label: "統計" },
-];
-
 export default function MHWTracker() {
   const [tab, setTab] = useState("capture");
   const [db, setDb] = useState<Entry[]>([]);
+  const [lang, setLang] = useState("ja");
 
   useEffect(() => {
     setDb(loadDB());
   }, []);
 
+  const TABS = [
+    { id: "capture", icon: "📷", label: lang==="en" ? "Record" : "記録" },
+    { id: "search",  icon: "🔍", label: lang==="en" ? "Skill Search" : "スキル検索" },
+    { id: "stats",   icon: "📊", label: lang==="en" ? "Stats" : "統計" },
+  ];
+
   return (
     <div className="max-w-lg mx-auto p-4 pb-8">
-      <h1 className="text-center text-base font-bold text-gray-700 mb-4">
-        巨戟アーティアスキル厳選補助ツール
-      </h1>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-base font-bold text-gray-700">
+          {lang==="en" ? "Artian Weapon Skill Roll Tracker" : "巨戟アーティアスキル厳選補助ツール"}
+        </h1>
+        <button
+          type="button"
+          onClick={() => setLang(v => v==="ja" ? "en" : "ja")}
+          className="text-xs border border-gray-200 rounded-lg px-2 py-1 text-gray-500 cursor-pointer hover:bg-gray-50"
+        >
+          {lang==="en" ? "🇯🇵 JP" : "🇺🇸 EN"}
+        </button>
+      </div>
       <div className="flex gap-1 mb-5 bg-gray-100 rounded-xl p-1">
         {TABS.map(t => (
           <button
@@ -778,9 +846,9 @@ export default function MHWTracker() {
           </button>
         ))}
       </div>
-      <div style={{ display: tab === "capture" ? "block" : "none" }}><CaptureTab db={db} setDb={setDb} /></div>
-      <div style={{ display: tab === "search"  ? "block" : "none" }}><SearchTab  db={db} /></div>
-      <div style={{ display: tab === "stats"   ? "block" : "none" }}><StatsTab   db={db} /></div>
+      <div style={{ display: tab === "capture" ? "block" : "none" }}><CaptureTab db={db} setDb={setDb} lang={lang} /></div>
+      <div style={{ display: tab === "search"  ? "block" : "none" }}><SearchTab  db={db} lang={lang} /></div>
+      <div style={{ display: tab === "stats"   ? "block" : "none" }}><StatsTab   db={db} lang={lang} /></div>
       <div className="mt-8 pt-4 border-t border-gray-100 text-center">
         <a
           href="https://buymeacoffee.com/champ.work"
@@ -788,7 +856,7 @@ export default function MHWTracker() {
           rel="noopener noreferrer"
           className="inline-block text-xs text-gray-400 hover:text-yellow-500 transition-colors"
         >
-          ☕ このツールが役に立ったら
+          {lang==="en" ? "☕ If this tool helped you" : "☕ このツールが役に立ったら"}
         </a>
       </div>
     </div>
